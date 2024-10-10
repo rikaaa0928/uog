@@ -1,0 +1,15 @@
+syntax = "proto3";
+package dad.xiaomi.uog;
+
+message UdpReq {
+  bool auth = 1;
+  bytes payload = 2;
+}
+
+message UdpRes {
+  bytes payload = 1;
+}
+
+service UdpService {
+  rpc startStream(stream UdpReq) returns (stream UdpRes) {}
+}
