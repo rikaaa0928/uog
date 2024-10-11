@@ -1,14 +1,11 @@
-use std::cell::RefCell;
+use std::env;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
-use std::{env, process};
-use std::rc::Rc;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use anyhow::Error;
 use log::{debug, error};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UdpSocket;
 use tokio::{spawn};
 use tokio::sync::{mpsc, Mutex};
@@ -49,7 +46,7 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> crate::Resul
 
         if let Err(e) = tx.send(UdpReq {
             auth: auth.clone(),
-            payload: buf[..size].to_vec()
+            payload: buf[..size].to_vec(),
         }).await {
             error!("Client TCP write error: {:?}", e);
             return Err(e.into());
@@ -58,7 +55,7 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> crate::Resul
 }
 
 fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr) {
-   spawn(async move {
+    spawn(async move {
         while let Some(result) = out_stream.lock().await.next().await {
             match result {
                 Ok(v) => {

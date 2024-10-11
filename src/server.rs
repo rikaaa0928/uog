@@ -1,17 +1,14 @@
 use std::env;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::sleep;
 use std::time::Duration;
-use log::{debug, error, info};
-use serde::de::Unexpected::Option;
+use log::{debug, error};
 use tokio::net::UdpSocket;
 use tokio::spawn;
 use tokio::sync::mpsc;
-use tokio::time::timeout;
+use tokio::time::{sleep, timeout};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use tonic::codegen::tokio_stream::{Stream, StreamExt};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
@@ -142,7 +139,7 @@ async fn server_test() -> Result<(), Box<dyn std::error::Error>> {
             println!("client udp send {:?}", x);
         }
     });
-    sleep(std::time::Duration::from_secs(1));
+    sleep(std::time::Duration::from_secs(1)).await;
     UogServer::bind("127.0.0.1:50051".to_string(), "127.0.0.1:50051".to_string(), "test".to_string()).await?;
 
     Ok(())
