@@ -10,13 +10,12 @@ use anyhow::Error;
 use log::{debug, error};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UdpSocket;
-use tokio::spawn;
+use tokio::{spawn};
 use tokio::sync::{mpsc, Mutex};
-use tokio::time::timeout;
 use tokio_stream::StreamExt;
-use tonic::codegen::tokio_stream::Stream;
 use pb::udp_service_client::UdpServiceClient;
 use pb::UdpReq;
+use pb::UdpRes;
 
 pub mod pb {
     tonic::include_proto!("dad.xiaomi.uog");
@@ -24,60 +23,58 @@ pub mod pb {
 
 pub async fn start(l_addr: String, d_addr: String, auth: String) -> crate::Result<()> {
     let sock = UdpSocket::bind(l_addr).await?;
-    let ur = Arc::new(sock);
-    let uw = ur.clone();
-    let (mut tx, mut rx) = mpsc::channel::<UdpReq>(1024);
+    let sock = Arc::new(sock);
+
+    let (tx, rx) = mpsc::channel::<UdpReq>(1024);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
-    let mut stream = pb::udp_service_client::UdpServiceClient::connect(d_addr.clone()).await?;
-    let out_stream = Arc::new(Mutex::new(stream.start_stream(rx).await?.into_inner()));
+
+    let mut client = UdpServiceClient::connect(d_addr).await?;
+    let out_stream = Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()));
+
     let mut last_addr: Option<SocketAddr> = None;
 
-    let res = tx.send(UdpReq { auth: true, payload: auth.into_bytes() }).await;
-    if res.is_err() {
-        error!("client tcp auth write error {:?}",res.unwrap_err());
-    }
     loop {
         let mut buf = [0; 65536];
-        let (size, addr) = ur.recv_from(&mut buf).await?;
-        let w_buf = &buf[..size];
-        debug!("client udp recv {:?} {}",&addr,size);
-        let mut reader = out_stream.clone();
-        let uw = uw.clone();
-        let last_addr_none = last_addr.is_none();
-        if last_addr_none {
-            last_addr.replace(addr);
-            spawn(async move {
-                let mut reader = reader.clone();
-                while let Some(result) = reader.lock().await.next().await {
-                    match result {
-                        Ok(v) => {
-                            let uw = uw.clone();
-                            let res = uw.send_to(v.payload.as_slice(), &addr).await;
-                            if res.is_err() {
-                                error!("client udp {:?} send error {:?}", &addr,res.unwrap_err());
-                                break;
-                            }
-                        }
-                        Err(err) => {
-                            error!("client reader next error {:?}",err)
-                        }
-                    }
-                }
-                process::exit(1);
-            });
-        } else if last_addr.clone().unwrap() != addr {
-            error!("addr changed {:?} {:?}",&last_addr, &addr);
-            return Err(Error::new(std::io::Error::new(ErrorKind::Other, "closed 2")));
-        }
-        {
-            let res = tx.send(UdpReq { auth: false, payload: Vec::from(w_buf) }).await;
-            if res.is_err() {
-                error!("client tcp write error {:?}",res.unwrap_err());
+        let (size, addr) = sock.recv_from(&mut buf).await?;
+        debug!("Client UDP recv from {:?}, size: {}", &addr, size);
+
+        if let Some(last) = last_addr {
+            if last != addr {
+                return Err(Error::new(std::io::Error::new(ErrorKind::Other, "Address changed unexpectedly")));
             }
+        } else {
+            last_addr = Some(addr);
+            spawn_reader(out_stream.clone(), sock.clone(), addr);
+        }
+
+        if let Err(e) = tx.send(UdpReq {
+            auth: auth.clone(),
+            payload: buf[..size].to_vec()
+        }).await {
+            error!("Client TCP write error: {:?}", e);
+            return Err(e.into());
         }
     }
+}
 
-    Ok(())
+fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr) {
+   spawn(async move {
+        while let Some(result) = out_stream.lock().await.next().await {
+            match result {
+                Ok(v) => {
+                    if let Err(e) = sock.send_to(&v.payload, &addr).await {
+                        error!("Client UDP send error to {:?}: {:?}", &addr, e);
+                        break;
+                    }
+                }
+                Err(err) => {
+                    error!("Client reader next error: {:?}", err);
+                    break;
+                }
+            }
+        }
+        std::process::exit(1);
+    });
 }
 
 #[tokio::test]

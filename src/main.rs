@@ -2,9 +2,6 @@ mod server;
 mod client;
 
 use std::env;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use anyhow::Error;
 use clap::{arg, command, Arg, ArgAction};
 
 type Result<T, E = anyhow::Error> = std::result::Result<T, E>;
