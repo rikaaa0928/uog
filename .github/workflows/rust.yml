@@ -42,7 +42,8 @@ jobs:
       - name: Get the release version from the tag
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
       - name: Install Rust
         # Or @nightly if you want
         uses: dtolnay/rust-toolchain@stable
