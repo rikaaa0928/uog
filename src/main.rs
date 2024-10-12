@@ -18,8 +18,8 @@ async fn main() -> Result<()> {
                  .long("server")
                  .action(ArgAction::SetTrue)
                  .help("server mod"), )
-        .arg(arg!([src] "addr src. client mod [udp-ip:udp-port]; server mod [tcp-ip:tcp-port]"))
-        .arg(arg!([dst] "addr dst. client mod [tcp-ip:tcp-port]; server mod [udp-port]"))
+        .arg(arg!([src] "addr src. client mod [udp-ip:udp-port]; server mod [grpc-ip:grpc-port]"))
+        .arg(arg!([dst] "addr dst. client mod [grpc-endpoint]; server mod [udp-port]"))
         .arg(arg!([sec] "secret"))
         // .arg(arg!([bind] "port bind. client mod [remote-udp-port]; server mod none"))
         .get_matches();
