@@ -70,7 +70,7 @@ impl UogServer {
     }
 
     fn spawn_read_task(&self, socket: Arc<UdpSocket>, tx: mpsc::Sender<Result<UdpRes, Status>>, should_stop: Arc<AtomicBool>) {
-        tokio::spawn(async move {
+        spawn(async move {
             let mut buf = [0; 65536];
             while !should_stop.load(Ordering::Relaxed) {
                 match timeout(Duration::from_secs(30), socket.recv_from(&mut buf)).await {
@@ -91,7 +91,7 @@ impl UogServer {
     }
 
     fn spawn_write_task(&self, socket: Arc<UdpSocket>, mut in_stream: Streaming<UdpReq>, key: Arc<String>, should_stop: Arc<AtomicBool>) {
-        tokio::spawn(async move {
+        spawn(async move {
             while let Some(result) = in_stream.next().await {
                 match result {
                     Ok(v) if v.auth == *key => {
