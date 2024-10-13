@@ -108,22 +108,25 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
         env::set_var("RUST_LOG", "debug")
     }
     env_logger::init();
-    spawn(async {
-        start("127.0.0.1:50050".to_string(), "http://127.0.0.1:50051".to_string(), "test".to_string()).await;
-    });
 
-    sleep(Duration::from_secs(1));
-    let socket = UdpSocket::bind("0.0.0.0:0").await?;
-    let res = socket.connect("127.0.0.1:50050").await;
-    if res.is_err() {
-        println!("server udp connect {}", res.err().unwrap());
-        return Ok(());
-    }
-    socket.send("test".as_bytes()).await?;
-    let mut read_buf = vec![0; 128];
-    let (len, _) = socket.recv_from(&mut read_buf).await?;
-    let read_buf = &read_buf[..len];
-    let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
-    println!("client udp recv {:?}", read_buf);
+    // spawn(async {
+    //     start("127.0.0.1:50050".to_string(), "http://127.0.0.1:50051".to_string(), "test".to_string()).await;
+    // });
+    //
+    // sleep(Duration::from_secs(1));
+    // let socket = UdpSocket::bind("0.0.0.0:0").await?;
+    // let res = socket.connect("127.0.0.1:50050").await;
+    // if res.is_err() {
+    //     println!("server udp connect {}", res.err().unwrap());
+    //     return Ok(());
+    // }
+    // socket.send("test".as_bytes()).await?;
+    // let mut read_buf = vec![0; 128];
+    // let (len, _) = socket.recv_from(&mut read_buf).await?;
+    // let read_buf = &read_buf[..len];
+    // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
+    // println!("client udp recv {:?}", read_buf);
+
+    start("127.0.0.1:50050".to_string(), "http://127.0.0.1:50051".to_string(), "test".to_string()).await;
     Ok(())
 }

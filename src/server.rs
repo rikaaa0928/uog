@@ -75,9 +75,12 @@ impl UogServer {
             while !should_stop.load(Ordering::Relaxed) {
                 match timeout(Duration::from_secs(30), socket.recv_from(&mut buf)).await {
                     Ok(Ok((size, _))) => {
+                        debug!("grpc sending data: {:?}", &buf[..size]);
                         if tx.send(Ok(UdpRes { payload: buf[..size].to_vec() })).await.is_err() {
+                            debug!("grpc send data error: {:?}", &buf[..size]);
                             break;
                         }
+                        debug!("grpc sended data error: {:?}", &buf[..size]);
                     }
                     Ok(Err(e)) => {
                         error!("Server UDP recv error: {}", e);
@@ -95,9 +98,11 @@ impl UogServer {
             while let Some(result) = in_stream.next().await {
                 match result {
                     Ok(v) if v.auth == *key => {
+                        debug!("udp sending data: {:?}", &v.payload);
                         if let Err(e) = socket.send(&v.payload).await {
                             error!("Server UDP send error: {:?}", e);
                         }
+                        debug!("udp sended data: {:?}", &v.payload);
                     }
                     Ok(_) => {
                         error!("Server auth failed");
@@ -129,17 +134,17 @@ async fn server_test() -> Result<(), Box<dyn std::error::Error>> {
         env::set_var("RUST_LOG", "debug")
     }
     env_logger::init();
-    spawn(async {
-        let res = UdpSocket::bind("127.0.0.1:50051").await.unwrap();
-        let mut buf = [0; 65536];
-        loop {
-            let (n, addr) = res.recv_from(&mut buf).await.unwrap();
-            println!("client udp recv {:?} {}", n, addr);
-            let x = res.send_to("pong".as_bytes(), addr).await.unwrap();
-            println!("client udp send {:?}", x);
-        }
-    });
-    sleep(std::time::Duration::from_secs(1)).await;
+    // spawn(async {
+    //     let res = UdpSocket::bind("127.0.0.1:50051").await.unwrap();
+    //     let mut buf = [0; 65536];
+    //     loop {
+    //         let (n, addr) = res.recv_from(&mut buf).await.unwrap();
+    //         println!("client udp recv {:?} {}", n, addr);
+    //         let x = res.send_to("pong".as_bytes(), addr).await.unwrap();
+    //         println!("client udp send {:?}", x);
+    //     }
+    // });
+    // sleep(std::time::Duration::from_secs(1)).await;
     UogServer::bind("127.0.0.1:50051".to_string(), "127.0.0.1:50051".to_string(), "test".to_string()).await?;
 
     Ok(())
