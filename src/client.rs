@@ -128,6 +128,12 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
 
-    start("127.0.0.1:50050".to_string(), "http://127.0.0.1:50051".to_string(), "test".to_string()).await;
+    let x = start("127.0.0.1:50051".to_string(), "https://uog.xiaomi.dad:444".to_string(), "test".to_string()).await;
+    match x {
+        Err(e) => {
+            error!("{:?}", e);
+        }
+        _ => {}
+    }
     Ok(())
 }
