@@ -12,7 +12,8 @@ pub fn start_client(l_addr: &str, d_addr: &str, auth: &str) -> String {
     let rt = Runtime::new().unwrap();
     let r = rt.block_on(client::start(l_addr.to_owned(), d_addr.to_owned(), auth.to_owned()));
     if r.is_err() {
-        return r.err().unwrap().backtrace().to_string();
+        let x = &r.err().unwrap();
+        return l_addr.clone().to_owned() + " : " + d_addr + " : " + auth + " : " + x.clone().to_string().as_str() + " : " + x.clone().backtrace().to_string().as_str();
     } else {
         return "".to_string();
     }
@@ -30,7 +31,7 @@ mod tests {
 
     #[test]
     fn client() {
-        let x = start_client("127.0.0.1:50051", "https://uog.xiaomi.dad:444", "test");
+        let x = start_client("127.0.0.1:50051", "https://127.0.0.1:443", "test");
         println!("{:#?}", x);
     }
 }
