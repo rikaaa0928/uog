@@ -117,7 +117,7 @@ jobs:
         with:
           ndk-version: r27b
 
-      - name: Build archive
+      - name: setup cargo-ndk
         shell: bash
         run: |
           cargo install cargo-ndk
