@@ -1,19 +1,26 @@
 use std::env;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use anyhow::Error;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::rt::TokioExecutor;
 use log::{debug, error};
+use rustls::crypto::{CryptoProvider, WebPkiSupportedAlgorithms};
+use rustls::crypto::aws_lc_rs::default_provider;
 use tokio::net::UdpSocket;
 use tokio::{spawn};
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::StreamExt;
+use tonic::transport::Uri;
 use pb::udp_service_client::UdpServiceClient;
 use pb::UdpReq;
 use pb::UdpRes;
 use crate::util;
+
 
 pub mod pb {
     tonic::include_proto!("dad.xiaomi.uog");
@@ -25,8 +32,34 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
 
     let (tx, rx) = mpsc::channel::<UdpReq>(1024);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
+    let _ = default_provider().install_default();
+    let tls = rustls_platform_verifier::tls_config();
 
-    let mut client = UdpServiceClient::connect(d_addr).await?;
+    let mut http = HttpConnector::new();
+    http.enforce_http(false);
+
+    // We have to do some wrapping here to map the request type from
+    // `https://example.com` -> `https://[::1]:50051` because `rustls`
+    // doesn't accept ip's as `ServerName`.
+    let connector = tower::ServiceBuilder::new()
+        .layer_fn(move |s| {
+            let tls = tls.clone();
+
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_tls_config(tls)
+                .https_or_http()
+                .enable_http2()
+                .wrap_connector(s)
+        })
+        .service(http);
+
+    let client = hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(connector);
+
+    // Using `with_origin` will let the codegenerated client set the `scheme` and
+    // `authority` from the provided `Uri`.
+    let uri = Uri::from_str(d_addr.as_str())?;
+
+    let mut client = UdpServiceClient::with_origin(client, uri);
     let out_stream = Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()));
 
     let mut last_addr: Option<SocketAddr> = None;
@@ -128,7 +161,7 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
 
-    let x = start("127.0.0.1:50051".to_string(), "https://uog.xiaomi.dad:444".to_string(), "test".to_string()).await;
+    let x = start("127.0.0.1:50051".to_string(), "https://uog.xiaomi.dad:443".to_string(), "test".to_string()).await;
     match x {
         Err(e) => {
             error!("{:?}", e);
