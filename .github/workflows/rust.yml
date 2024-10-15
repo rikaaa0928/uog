@@ -127,7 +127,7 @@ jobs:
         with:
           use-cross: true
           command: ndk
-          args: --verbose --release --target aarch64-linux-android -o jniLibs build --lib uog
+          args: --release --target aarch64-linux-android -o jniLibs build --lib uog
 
       - name: Build archive
         shell: bash
