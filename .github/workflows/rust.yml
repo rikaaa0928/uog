@@ -1,7 +1,7 @@
 name: release
 
 on:
- push:
+  push:
     # Sequence of patterns matched against refs/tags
     tags:
       - 'v*'
@@ -59,7 +59,7 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: --verbose --release --target ${{ matrix.target }}
+          args: --verbose --release --target ${{ matrix.target }}  --bin uog
 
       - name: Build archive
         shell: bash
@@ -116,12 +116,18 @@ jobs:
         name: set up ndk
         with:
           ndk-version: r27b
+
+      - name: Build archive
+        shell: bash
+        run: |
+          cargo install cargo-ndk
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: ndk
-          args: --verbose --release --target aarch64-linux-android -o jniLibs build
+          args: --verbose --release --target aarch64-linux-android -o jniLibs build --lib uog
 
       - name: Build archive
         shell: bash
