@@ -4,14 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "uog"
-crate-type = ["cdylib"]
-path = "src/lib.rs"
+#[lib]
+#name = "uog"
+#crate-type = ["cdylib"]
+#path = "src/lib.rs"
+#
+#[[bin]]
+#name = "uog"
+#path = "src/main.rs"
 
 [[bin]]
-name = "uog"
-path = "src/main.rs"
+name = "uniffi"
+path = "uniffi.rs"
 
 [dependencies]
 tokio = { version = "1.35.1", features = ["full"] }
@@ -28,5 +32,8 @@ prost = "0.13.3"
 h2 = "0.4.6"
 tokio-stream = "0.1.16"
 
+uniffi = { version = "0.23.0", features = ["cli"] }
+
 [build-dependencies]
 tonic-build = "0.12.3"
+uniffi = { version = "0.23.0", features = [ "build" ] }
