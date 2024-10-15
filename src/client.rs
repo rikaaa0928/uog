@@ -13,12 +13,13 @@ use tokio_stream::StreamExt;
 use pb::udp_service_client::UdpServiceClient;
 use pb::UdpReq;
 use pb::UdpRes;
+use crate::util;
 
 pub mod pb {
     tonic::include_proto!("dad.xiaomi.uog");
 }
 
-pub async fn start(l_addr: String, d_addr: String, auth: String) -> crate::Result<()> {
+pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result<()> {
     let sock = UdpSocket::bind(l_addr).await?;
     let sock = Arc::new(sock);
 
