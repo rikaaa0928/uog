@@ -1,13 +1,13 @@
 mod server;
 mod client;
-
+mod util;
 use std::env;
 use clap::{arg, command, Arg, ArgAction};
 
-type Result<T, E = anyhow::Error> = std::result::Result<T, E>;
+
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> util::Result<()> {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info")
     }

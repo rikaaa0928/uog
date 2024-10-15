@@ -14,6 +14,8 @@ use tonic::codegen::tokio_stream::{Stream, StreamExt};
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
 use pb::udp_service_server::UdpService;
 use pb::{UdpReq, UdpRes};
+use crate::util;
+
 pub mod pb {
     tonic::include_proto!("dad.xiaomi.uog");
 }
@@ -60,7 +62,7 @@ impl UogServer {
         UogServer { key, d_addr }
     }
 
-    pub async fn bind(addr: String, d_addr: String, key: String) -> crate::Result<()> {
+    pub async fn bind(addr: String, d_addr: String, key: String) -> util::Result<()> {
         let uog = UogServer::new(d_addr, key);
         let addr: SocketAddr = addr.parse()?;
         Server::builder()

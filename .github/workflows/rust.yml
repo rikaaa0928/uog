@@ -88,3 +88,51 @@ jobs:
         with:
           files: |
             ${{ env.ASSET }}
+
+  lib-build-and-upload:
+    name: Lib Build and upload
+    permissions: write-all
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get the release version from the tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Rust
+        # Or @nightly if you want
+        uses: dtolnay/rust-toolchain@stable
+        # Arguments to pass in
+        with:
+          # Make Rust compile to our target (defined in the matrix)
+          targets: aarch64-linux-android
+      - uses: nttld/setup-ndk@v1
+        name: set up ndk
+        with:
+          ndk-version: r27b
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: ndk
+          args: --verbose --release --target aarch64-linux-android -o jniLibs build
+
+      - name: Build archive
+        shell: bash
+        run: |
+          dirname="jniLibs"
+          tar -czf "$dirname.tar.gz" "$dirname"
+          echo "ASSET=$dirname.tar.gz" >> $GITHUB_ENV
+          
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.ASSET }}
