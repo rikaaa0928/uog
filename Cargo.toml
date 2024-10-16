@@ -38,6 +38,7 @@ tower = "0.4.13"
 hyper-util = "0.1.9"
 hyper-rustls = { version = "0.27.3", features = ["http2"] }
 rustls = "0.23.11"
+aws-lc-rs = { version = "1.10.0", features = ["bindgen"] }
 
 [build-dependencies]
 tonic-build = "0.12.3"
