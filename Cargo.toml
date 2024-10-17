@@ -44,6 +44,3 @@ jni = "0.19.0"
 [build-dependencies]
 tonic-build = "0.12.3"
 uniffi = { version = "0.28.2", features = ["build"] }
-
-[libraries]
-rustls-platform-verifier = { group = "rustls", name = "rustls-platform-verifier", version = "latest.release" }

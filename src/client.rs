@@ -2,7 +2,8 @@ use std::env;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{atomic, Arc};
+use std::sync::atomic::AtomicBool;
 use std::thread::sleep;
 use std::time::Duration;
 use anyhow::Error;
@@ -15,6 +16,7 @@ use rustls::crypto::aws_lc_rs::default_provider;
 use tokio::net::UdpSocket;
 use tokio::{spawn};
 use tokio::sync::{mpsc, Mutex};
+use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
 use tonic::transport::Uri;
@@ -70,32 +72,60 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
     // let out_stream = Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()));
 
     let mut last_addr: Option<SocketAddr> = None;
+    let should_stop = Arc::new(AtomicBool::new(false));
+    let mut buf = [0; 65536];
+    while !should_stop.clone().load(atomic::Ordering::Relaxed) {
+        match timeout(Duration::from_secs(5), sock.recv_from(&mut buf)).await {
+            Ok(Ok((size, addr))) => {
+                debug!("Client UDP recv from {:?}, size: {}", &addr, size);
 
-    loop {
-        let mut buf = [0; 65536];
-        let (size, addr) = sock.recv_from(&mut buf).await?;
-        debug!("Client UDP recv from {:?}, size: {}", &addr, size);
+                if let Some(last) = last_addr {
+                    if last != addr {
+                        return Err(Error::new(std::io::Error::new(ErrorKind::Other, "Address changed unexpectedly")));
+                    }
+                } else {
+                    last_addr = Some(addr);
+                    spawn_reader(out_stream.clone(), sock.clone(), addr, should_stop.clone());
+                }
 
-        if let Some(last) = last_addr {
-            if last != addr {
-                return Err(Error::new(std::io::Error::new(ErrorKind::Other, "Address changed unexpectedly")));
+                if let Err(e) = tx.send(UdpReq {
+                    auth: auth.clone(),
+                    payload: buf[..size].to_vec(),
+                }).await {
+                    error!("Client grpc write error: {:?}", e);
+                    return Err(e.into());
+                }
             }
-        } else {
-            last_addr = Some(addr);
-            spawn_reader(out_stream.clone(), sock.clone(), addr);
+            Ok(Err(e)) => {
+                error!("Client UDP recv error: {}", e);
+                return Err(e.into());
+            }
+            Err(_) => continue,
         }
-
-        if let Err(e) = tx.send(UdpReq {
-            auth: auth.clone(),
-            payload: buf[..size].to_vec(),
-        }).await {
-            error!("Client TCP write error: {:?}", e);
-            return Err(e.into());
-        }
+        // let (size, addr) = sock.recv_from(&mut buf).await?;
+        // debug!("Client UDP recv from {:?}, size: {}", &addr, size);
+        //
+        // if let Some(last) = last_addr {
+        //     if last != addr {
+        //         return Err(Error::new(std::io::Error::new(ErrorKind::Other, "Address changed unexpectedly")));
+        //     }
+        // } else {
+        //     last_addr = Some(addr);
+        //     spawn_reader(out_stream.clone(), sock.clone(), addr, should_stop.clone());
+        // }
+        //
+        // if let Err(e) = tx.send(UdpReq {
+        //     auth: auth.clone(),
+        //     payload: buf[..size].to_vec(),
+        // }).await {
+        //     error!("Client TCP write error: {:?}", e);
+        //     return Err(e.into());
+        // }
     }
+    Ok(())
 }
 
-fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr) {
+fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr, should_stop: Arc<AtomicBool>) {
     spawn(async move {
         while let Some(result) = out_stream.lock().await.next().await {
             match result {
@@ -111,7 +141,7 @@ fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpS
                 }
             }
         }
-        std::process::exit(1);
+        should_stop.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 }
 
