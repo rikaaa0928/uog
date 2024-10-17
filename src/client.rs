@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use anyhow::Error;
+use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use log::{debug, error};
@@ -15,6 +16,7 @@ use tokio::net::UdpSocket;
 use tokio::{spawn};
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::StreamExt;
+use tonic::client::GrpcService;
 use tonic::transport::Uri;
 use pb::udp_service_client::UdpServiceClient;
 use pb::UdpReq;
@@ -32,35 +34,40 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
 
     let (tx, rx) = mpsc::channel::<UdpReq>(1024);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
-    let _ = default_provider().install_default();
-    let tls = rustls_platform_verifier::tls_config();
 
-    let mut http = HttpConnector::new();
-    http.enforce_http(false);
-
-    // We have to do some wrapping here to map the request type from
-    // `https://example.com` -> `https://[::1]:50051` because `rustls`
-    // doesn't accept ip's as `ServerName`.
-    let connector = tower::ServiceBuilder::new()
-        .layer_fn(move |s| {
-            let tls = tls.clone();
-
-            hyper_rustls::HttpsConnectorBuilder::new()
-                .with_tls_config(tls)
-                .https_or_http()
-                .enable_http2()
-                .wrap_connector(s)
-        })
-        .service(http);
-
-    let client = hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(connector);
-
-    // Using `with_origin` will let the codegenerated client set the `scheme` and
-    // `authority` from the provided `Uri`.
     let uri = Uri::from_str(d_addr.as_str())?;
+    let out_stream = if uri.scheme_str() != Some("https") {
+        let mut client = UdpServiceClient::connect(d_addr).await?;
+        Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
+    } else {
+        let _ = default_provider().install_default();
+        let tls = rustls_platform_verifier::tls_config();
 
-    let mut client = UdpServiceClient::with_origin(client, uri);
-    let out_stream = Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()));
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
+
+        // We have to do some wrapping here to map the request type from
+        // `https://example.com` -> `https://[::1]:50051` because `rustls`
+        // doesn't accept ip's as `ServerName`.
+        let connector = tower::ServiceBuilder::new()
+            .layer_fn(move |s| {
+                let tls = tls.clone();
+
+                hyper_rustls::HttpsConnectorBuilder::new()
+                    .with_tls_config(tls)
+                    .https_or_http()
+                    .enable_http2()
+                    .wrap_connector(s)
+            })
+            .service(http);
+
+        let client = hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(connector);
+        let mut client = UdpServiceClient::with_origin(client, uri);
+        Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
+    };
+
+    // let mut client = UdpServiceClient::with_origin(client, uri);
+    // let out_stream = Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()));
 
     let mut last_addr: Option<SocketAddr> = None;
 
