@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-#[lib]
-#name = "uog"
-#crate-type = ["cdylib"]
-#path = "src/lib.rs"
-#
-#[[bin]]
-#name = "uog"
-#path = "src/main.rs"
+[lib]
+name = "uog"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "uog"
+path = "src/main.rs"
 
 [[bin]]
 name = "uniffi"
@@ -32,14 +32,18 @@ prost = "0.13.3"
 h2 = "0.4.6"
 tokio-stream = "0.1.16"
 
-uniffi = { version = "0.23.0", features = ["cli"] }
-rustls-platform-verifier = "0.3"
+uniffi = { version = "0.28.2", features = ["cli"] }
+rustls-platform-verifier = { version = "0.3" }
 tower = "0.4.13"
 hyper-util = "0.1.9"
 hyper-rustls = { version = "0.27.3", features = ["http2"] }
 rustls = "0.23.11"
 aws-lc-rs = { version = "1.10.0", features = ["bindgen"] }
+jni = "0.19.0"
 
 [build-dependencies]
 tonic-build = "0.12.3"
-uniffi = { version = "0.23.0", features = ["build"] }
+uniffi = { version = "0.28.2", features = ["build"] }
+
+[libraries]
+rustls-platform-verifier = { group = "rustls", name = "rustls-platform-verifier", version = "latest.release" }
