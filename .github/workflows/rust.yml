@@ -117,24 +117,21 @@ jobs:
         with:
           ndk-version: r27b
 
-      - name: setup cargo-ndk
+      - name: setup and build
         shell: bash
         run: |
-          cargo install cargo-ndk
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: ndk
-          args: --target aarch64-linux-android -o jniLibs build --lib uog
+          cargo install cargo-ndk;
+          cargo install cross --git https://github.com/cross-rs/cross;
+          cross build  --target aarch64-linux-android --release --lib;
 
       - name: Build archive
         shell: bash
         run: |
           dirname="jniLibs"
-          tar -czf "$dirname.tar.gz" "$dirname"
-          echo "ASSET=$dirname.tar.gz" >> $GITHUB_ENV
+          mkdir -p $dirname/arm64-v8a
+          cp target/aarch64-linux-android/release/libuog.so $dirname/arm64-v8a/libuniffi_uog.so
+          tar -czf "$dirname-arm64-v8a.tar.gz" "$dirname"
+          echo "ASSET=$dirname-arm64-v8a.tar.gz" >> $GITHUB_ENV
           
 
       - name: Release
