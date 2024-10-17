@@ -1,3 +1,0 @@
-namespace uog {
-  string start_client([ByRef] string l_addr,[ByRef] string d_addr,[ByRef] string auth);
-};

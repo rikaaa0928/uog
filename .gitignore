@@ -2,3 +2,4 @@
 .idea
 /jniLibs
 **/uniffi/
+out
