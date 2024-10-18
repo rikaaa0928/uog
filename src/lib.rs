@@ -101,7 +101,7 @@ mod tests {
             sleep(Duration::from_secs(5));
             client.stop();
         });
-        let x = c.run("127.0.0.1:50051", "https://uog.xiaomi.dad:443", "test");
+        let x = c.run("127.0.0.1:50051", "https://127.0.0.1:443", "test");
         println!("{:#?}", x);
 
     }
