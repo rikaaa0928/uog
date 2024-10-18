@@ -2,8 +2,9 @@ mod server;
 mod client;
 mod util;
 use std::env;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use clap::{arg, command, Arg, ArgAction};
-
 
 
 #[tokio::main]
@@ -30,7 +31,7 @@ async fn main() -> util::Result<()> {
     if s_mod.is_some() && *s_mod.unwrap() {
         let _ = server::UogServer::bind(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
     } else {
-        let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
+        let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string(), Arc::new(AtomicBool::new(false))).await?;
     }
     Ok(())
 }

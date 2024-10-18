@@ -3,23 +3,35 @@ mod client;
 mod util;
 
 use std::future::Future;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::runtime::Runtime;
 use jni::JNIEnv;
 use jni::objects::{JClass, JObject};
 
-uniffi::setup_scaffolding!();
 
-#[uniffi::export]
 #[no_mangle]
-pub fn start_client(l_addr: &str, d_addr: &str, auth: &str) -> String {
+pub fn Java_RustLibrary_startClient(l_addr: &str, d_addr: &str, auth: &str, stop_signal: *const AtomicBool) -> String {
+    let stop_signal = unsafe { Arc::from_raw(stop_signal) };
     let rt = Runtime::new().unwrap();
-    let r = rt.block_on(client::start(l_addr.to_owned(), d_addr.to_owned(), auth.to_owned()));
+    let r = rt.block_on(client::start(l_addr.to_owned(), d_addr.to_owned(), auth.to_owned(), stop_signal));
     if r.is_err() {
         let x = &r.err().unwrap();
         return l_addr.to_owned() + " : " + d_addr + " : " + auth + " : " + x.clone().to_string().as_str() + " : " + x.backtrace().to_string().as_str();
     } else {
         return "".to_string();
     }
+}
+
+#[no_mangle]
+pub extern "C" fn Java_RustLibrary_createStopSignal() -> *const AtomicBool {
+    Arc::into_raw(Arc::new(AtomicBool::new(false)))
+}
+
+#[no_mangle]
+pub extern "C" fn Java_RustLibrary_setStopSignal(stop_signal: *const AtomicBool) {
+    let stop_signal = unsafe { &*(stop_signal as *const AtomicBool) };
+    stop_signal.store(true, Ordering::Relaxed);
 }
 
 // #[no_mangle]
