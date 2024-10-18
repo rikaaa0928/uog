@@ -16,7 +16,7 @@ use rustls::crypto::aws_lc_rs::default_provider;
 use tokio::net::UdpSocket;
 use tokio::{io, spawn};
 use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::sync::oneshot::Sender;
+use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
@@ -35,15 +35,21 @@ async fn interruptible_recv(
     sock: &UdpSocket,
     buf: &mut [u8],
     interrupt: &mut oneshot::Receiver<()>,
+    global_int: &mut oneshot::Receiver<()>,
+    stop: Arc<AtomicBool>,
 ) -> Result<io::Result<(usize, SocketAddr)>, Error> {
     tokio::select! {
         result = sock.recv_from(buf) =>Ok(result),
         _ = interrupt => Err(Error::from(io::Error::new(ErrorKind::Interrupted, "Operation interrupted"))),
+        _ = global_int => {
+            stop.store(true, atomic::Ordering::Relaxed);
+            Err(Error::from(io::Error::new(ErrorKind::Interrupted, "Operation interrupted2")))
+        },
     }
 }
 
 
-pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result<()> {
+pub async fn start(l_addr: String, d_addr: String, auth: String, global_int: &mut Receiver<()>) -> util::Result<()> {
     let sock = UdpSocket::bind(l_addr).await?;
     let sock = Arc::new(sock);
 
@@ -86,12 +92,12 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
 
     let mut last_addr: Option<SocketAddr> = None;
     let should_stop = Arc::new(AtomicBool::new(false));
-    let (interrupt_sender,mut interrupt_receiver) = oneshot::channel();
+    let (interrupt_sender, mut interrupt_receiver) = oneshot::channel();
     let mut interrupt_sender = Some(interrupt_sender);
     // let interrupt_sender = Arc::new(Mutex::new(interrupt_sender));
     let mut buf = [0; 65536];
     while !should_stop.clone().load(atomic::Ordering::Relaxed) {
-        match interruptible_recv(&sock, &mut buf, &mut interrupt_receiver).await {
+        match interruptible_recv(&sock, &mut buf, &mut interrupt_receiver, global_int, should_stop.clone()).await {
             Ok(Ok((size, addr))) => {
                 debug!("Client UDP recv from {:?}, size: {}", &addr, size);
 
@@ -217,8 +223,8 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = &read_buf[..len];
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
-
-    let x = start("127.0.0.1:50051".to_string(), "https://uog.xiaomi.dad:443".to_string(), "test".to_string()).await;
+    let (_, mut interrupt_receiver) = oneshot::channel();
+    let x = start("127.0.0.1:50051".to_string(), "https://127.0.0.1:443".to_string(), "test".to_string(), &mut interrupt_receiver).await;
     match x {
         Err(e) => {
             error!("{:?}", e);

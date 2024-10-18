@@ -3,8 +3,7 @@ mod client;
 mod util;
 use std::env;
 use clap::{arg, command, Arg, ArgAction};
-
-
+use tokio::sync::oneshot;
 
 #[tokio::main]
 async fn main() -> util::Result<()> {
@@ -30,7 +29,8 @@ async fn main() -> util::Result<()> {
     if s_mod.is_some() && *s_mod.unwrap() {
         let _ = server::UogServer::bind(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
     } else {
-        let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
+        let (_, mut interrupt_receiver) = oneshot::channel();
+        let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string(), &mut interrupt_receiver).await?;
     }
     Ok(())
 }
