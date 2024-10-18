@@ -16,7 +16,7 @@ pub fn start_client(l_addr: &str, d_addr: &str, auth: &str) -> String {
     let r = rt.block_on(client::start(l_addr.to_owned(), d_addr.to_owned(), auth.to_owned()));
     if r.is_err() {
         let x = &r.err().unwrap();
-        return l_addr.clone().to_owned() + " : " + d_addr + " : " + auth + " : " + x.clone().to_string().as_str() + " : " + x.backtrace().to_string().as_str();
+        return l_addr.to_owned() + " : " + d_addr + " : " + auth + " : " + x.clone().to_string().as_str() + " : " + x.backtrace().to_string().as_str();
     } else {
         return "".to_string();
     }
