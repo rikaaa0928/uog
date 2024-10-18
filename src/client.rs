@@ -14,8 +14,9 @@ use log::{debug, error};
 use rustls::crypto::{CryptoProvider, WebPkiSupportedAlgorithms};
 use rustls::crypto::aws_lc_rs::default_provider;
 use tokio::net::UdpSocket;
-use tokio::{spawn};
-use tokio::sync::{mpsc, Mutex};
+use tokio::{io, spawn};
+use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::oneshot::Sender;
 use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
@@ -29,6 +30,18 @@ use crate::util;
 pub mod pb {
     tonic::include_proto!("dad.xiaomi.uog");
 }
+
+async fn interruptible_recv(
+    sock: &UdpSocket,
+    buf: &mut [u8],
+    interrupt: &mut oneshot::Receiver<()>,
+) -> Result<io::Result<(usize, SocketAddr)>, Error> {
+    tokio::select! {
+        result = sock.recv_from(buf) =>Ok(result),
+        _ = interrupt => Err(Error::from(io::Error::new(ErrorKind::Interrupted, "Operation interrupted"))),
+    }
+}
+
 
 pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result<()> {
     let sock = UdpSocket::bind(l_addr).await?;
@@ -73,9 +86,12 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
 
     let mut last_addr: Option<SocketAddr> = None;
     let should_stop = Arc::new(AtomicBool::new(false));
+    let (interrupt_sender,mut interrupt_receiver) = oneshot::channel();
+    let mut interrupt_sender = Some(interrupt_sender);
+    // let interrupt_sender = Arc::new(Mutex::new(interrupt_sender));
     let mut buf = [0; 65536];
     while !should_stop.clone().load(atomic::Ordering::Relaxed) {
-        match timeout(Duration::from_secs(5), sock.recv_from(&mut buf)).await {
+        match interruptible_recv(&sock, &mut buf, &mut interrupt_receiver).await {
             Ok(Ok((size, addr))) => {
                 debug!("Client UDP recv from {:?}, size: {}", &addr, size);
 
@@ -85,7 +101,10 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
                     }
                 } else {
                     last_addr = Some(addr);
-                    spawn_reader(out_stream.clone(), sock.clone(), addr, should_stop.clone());
+                    if let Some(sender) = interrupt_sender.take() {
+                        spawn_reader(out_stream.clone(), sock.clone(), addr, should_stop.clone(), sender);
+                    }
+                    // spawn_reader(out_stream.clone(), sock.clone(), addr, should_stop.clone(), interrupt_sender);
                 }
 
                 if let Err(e) = tx.send(UdpReq {
@@ -125,7 +144,7 @@ pub async fn start(l_addr: String, d_addr: String, auth: String) -> util::Result
     Ok(())
 }
 
-fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr, should_stop: Arc<AtomicBool>) {
+fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpSocket>, addr: SocketAddr, should_stop: Arc<AtomicBool>, interrupt: Sender<()>) {
     spawn(async move {
         while let Some(result) = out_stream.lock().await.next().await {
             match result {
@@ -142,6 +161,7 @@ fn spawn_reader(out_stream: Arc<Mutex<tonic::Streaming<UdpRes>>>, sock: Arc<UdpS
             }
         }
         should_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        interrupt.send(()).unwrap();
     });
 }
 
@@ -198,7 +218,7 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
 
-    let x = start("127.0.0.1:50051".to_string(), "https://127.0.0.1:443".to_string(), "test".to_string()).await;
+    let x = start("127.0.0.1:50051".to_string(), "https://uog.xiaomi.dad:443".to_string(), "test".to_string()).await;
     match x {
         Err(e) => {
             error!("{:?}", e);
