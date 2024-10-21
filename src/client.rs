@@ -20,6 +20,7 @@ use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
+use tonic::Request;
 use tonic::transport::Uri;
 use pb::udp_service_client::UdpServiceClient;
 use pb::UdpReq;
@@ -55,7 +56,7 @@ pub async fn start(l_addr: String, d_addr: String, auth: String, global_int: &mu
 
     let (tx, rx) = mpsc::channel::<UdpReq>(1024);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
-
+    let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
     let out_stream = if uri.scheme_str() != Some("https") {
         let mut client = UdpServiceClient::connect(d_addr).await?;
@@ -223,7 +224,7 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = &read_buf[..len];
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
-    let (_, mut interrupt_receiver) = oneshot::channel();
+    let (interrupter, mut interrupt_receiver) = oneshot::channel();
     let x = start("127.0.0.1:50051".to_string(), "https://127.0.0.1:443".to_string(), "test".to_string(), &mut interrupt_receiver).await;
     match x {
         Err(e) => {
@@ -231,5 +232,6 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => {}
     }
+    interrupter.send(()).unwrap();
     Ok(())
 }
