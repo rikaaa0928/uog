@@ -29,8 +29,9 @@ async fn main() -> util::Result<()> {
     if s_mod.is_some() && *s_mod.unwrap() {
         let _ = server::UogServer::bind(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
     } else {
-        let (_, mut interrupt_receiver) = oneshot::channel();
+        let (interrupter, mut interrupt_receiver) = oneshot::channel();
         let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string(), &mut interrupt_receiver).await?;
+        interrupter.send(()).unwrap();
     }
     Ok(())
 }
