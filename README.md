@@ -1,3 +1,36 @@
+# UOG项目
+
+UOG是一个基于Rust开发的UDP over gRPC工具。它允许通过gRPC隧道传输UDP流量,为UDP通信提供了额外的安全性和灵活性。
+
+## 主要特性
+
+- 使用gRPC作为传输层,提供加密和认证
+- 支持UDP到gRPC的双向转换
+- 跨平台支持,包括Linux、macOS、Windows和Android
+- 高性能设计,适用于实时应用场景
+- 简单易用的命令行界面
+
+## 应用场景
+
+UOG可以应用于以下场景:
+
+- 在限制性网络环境中传输UDP流量
+- 为游戏、VoIP等UDP应用提供额外的安全层
+- 在企业网络中安全地传输UDP数据
+- 作为VPN或代理服务的组件
+
+## 技术栈
+
+- Rust编程语言
+- Tokio异步运行时
+- Tonic gRPC框架
+- Protocol Buffers用于数据序列化
+- Cargo用于项目管理和构建
+
+## 许可证
+
+本项目采用Apache 2.0许可证。详情请参阅[LICENSE](LICENSE)文件。
+
 ## 构建
 
 本项目使用 Cargo 进行构建管理。以下是在本地构建项目的步骤:
