@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::{atomic, Arc};
 use std::sync::atomic::AtomicBool;
-use std::thread::sleep;
 use std::time::Duration;
 use anyhow::Error;
 use hyper_util::client::legacy::Client;
