@@ -38,4 +38,5 @@ passthrough = ["PROTOC=/opt/.local/bin/protoc"]
 pre-build = [
     "apt-get update",
     "apt-get install -y protobuf-compiler",
+    "cargo install --force --locked bindgen-cli",
 ]
