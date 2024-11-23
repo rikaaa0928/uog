@@ -39,5 +39,6 @@ pre-build = [
     "apt-get update",
     "apt-get install -y protobuf-compiler curl",
     "curl https://sh.rustup.rs -sSf | sh -s -- -y",
+    ". \"$HOME/.cargo/env\"",
     "cargo install --force --locked bindgen-cli",
 ]
