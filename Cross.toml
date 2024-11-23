@@ -13,13 +13,13 @@ pre-build = [
 [target.x86_64-unknown-linux-gnu]
 pre-build = [
     "apt-get update",
-    "apt-get install -y protobuf-compiler clang",
+    "apt-get install -y protobuf-compiler libclang-5.0-dev",
 ]
 
 [target.aarch64-unknown-linux-gnu]
 pre-build = [
     "apt-get update",
-    "apt-get install -y protobuf-compiler clang",
+    "apt-get install -y protobuf-compiler libclang-5.0-dev",
 ]
 
 [target.aarch64-linux-android]
