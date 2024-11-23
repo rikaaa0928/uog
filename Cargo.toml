@@ -8,7 +8,7 @@ edition = "2021"
 name = "uog"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
-#required-features = ["build-lib"]
+required-features = ["build-lib"]
 
 [[bin]]
 name = "uog"
@@ -39,10 +39,10 @@ tower = "0.4.13"
 hyper-util = "0.1.9"
 hyper-rustls = { version = "0.27.3", features = ["http2"] }
 rustls = "0.23.11"
-aws-lc-sys = { version = "0.22.0", features = ["bindgen"]}
+aws-lc-sys = { version = "0.23.1", features = ["bindgen"], optional = true }
 jni = "0.19.0"
-#[features]
-#build-lib = ["aws-lc-rs"]
+[features]
+build-lib = ["aws-lc-sys"]
 [build-dependencies]
 tonic-build = "0.12.3"
 uniffi = { version = "0.28.2", features = ["build"] }

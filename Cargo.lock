@@ -184,24 +184,9 @@ version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f47bb8cc16b669d267eeccf585aea077d0882f4777b1c1f740217885d6e6e5a3"
 dependencies = [
- "aws-lc-sys 0.23.1",
+ "aws-lc-sys",
  "paste",
  "zeroize",
-]
-
-[[package]]
-name = "aws-lc-sys"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df7a4168111d7eb622a31b214057b8509c0a7e1794f44c546d742330dc793972"
-dependencies = [
- "bindgen",
- "cc",
- "cmake",
- "dunce",
- "fs_extra",
- "libc",
- "paste",
 ]
 
 [[package]]
@@ -2092,7 +2077,7 @@ name = "uog"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "aws-lc-sys 0.22.0",
+ "aws-lc-sys",
  "clap",
  "env_logger",
  "hyper-rustls",
