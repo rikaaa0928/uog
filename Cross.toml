@@ -40,6 +40,6 @@ pre-build = [
     "apt-get install -y protobuf-compiler curl",
     "curl https://sh.rustup.rs -sSf | sh -s -- -y",
     ". \"$HOME/.cargo/env\"",
-    "rustup target add aarch64-unknown-linux-android",
-    "cargo install --force --locked bindgen-cli --target aarch64-unknown-linux-android",
+    "rustup target add aarch64-linux-android",
+    "cargo install --force --locked bindgen-cli --target aarch64-linux-android",
 ]
