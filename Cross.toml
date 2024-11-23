@@ -11,24 +11,9 @@ pre-build = [
 ]
 
 [target.x86_64-unknown-linux-gnu]
-image = "ubuntu:latest"
 pre-build = [
     "apt-get update",
     "apt-get install -y protobuf-compiler",
-    "apt-get install -y build-essential",
-    "apt-get install -y cmake golang",
-    "apt-get install -y libclang1",
-]
-
-[target.aarch64-unknown-linux-gnu]
-image = "ubuntu:latest"
-pre-build = [
-    "apt-get update",
-    "apt-get install -y protobuf-compiler",
-    "apt-get install -y build-essential",
-    "apt-get install -y cmake golang",
-    "apt-get install -y libclang1",
-    "apt-get install -y gcc-13 gcc-13-aarch64-linux-gnu",
 ]
 
 [target.aarch64-linux-android]
