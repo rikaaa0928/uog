@@ -128,7 +128,7 @@ jobs:
         run: |
           cargo install cargo-ndk;
           cargo install cross --git https://github.com/cross-rs/cross;
-          cargo install --force --locked bindgen-cli
+          # cargo install --force --locked bindgen-cli
           cross build  --target aarch64-linux-android --release --lib;
 
       - name: Build archive
