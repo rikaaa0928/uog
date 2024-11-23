@@ -35,7 +35,11 @@ pre-build = [
 passthrough = ["PROTOC=/opt/.local/bin/protoc"]
 
 [target.aarch64-linux-android]
+image = "ubuntu:latest"
 pre-build = [
     "apt-get update",
-    "apt-get install -y protobuf-compiler curl",
+    "apt-get install -y protobuf-compiler",
+    "apt-get install -y build-essential",
+    "apt-get install -y cmake golang",
+    "apt-get install -y libclang1",
 ]
