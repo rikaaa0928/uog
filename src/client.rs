@@ -53,7 +53,8 @@ pub async fn start(
     auth: String,
     global_int: &mut Receiver<()>,
 ) -> util::Result<()> {
-    let sock = UdpSocket::bind(l_addr).await?;
+    let sock = UdpSocket::bind(&l_addr).await?;
+    info!("udp Listening on {}", &l_addr);
     let sock = Arc::new(sock);
 
     let (tx, rx) = mpsc::channel::<UdpReq>(1024);
@@ -61,7 +62,7 @@ pub async fn start(
     let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
     let out_stream = if uri.scheme_str() != Some("https") {
-        let mut client = UdpServiceClient::connect(d_addr).await?;
+        let mut client = UdpServiceClient::connect(d_addr.clone()).await?;
         Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
     } else {
         let _ = default_provider().install_default();
@@ -90,7 +91,7 @@ pub async fn start(
         let mut client = UdpServiceClient::with_origin(client, uri);
         Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
     };
-
+    info!("grpc connected {}", &d_addr);
     let mut last_addr: Option<SocketAddr> = None;
     let should_stop = Arc::new(AtomicBool::new(false));
     let (interrupt_sender, mut interrupt_receiver) = oneshot::channel();
