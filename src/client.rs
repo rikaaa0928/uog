@@ -70,6 +70,7 @@ pub async fn start(
 
         let mut http = HttpConnector::new();
         http.enforce_http(false);
+        http.timeout(Duration::from_secs(3));
 
         // We have to do some wrapping here to map the request type from
         // `https://example.com` -> `https://[::1]:50051` because `rustls`
