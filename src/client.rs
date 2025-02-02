@@ -23,7 +23,7 @@ use tokio::time::timeout;
 use tokio::{io, spawn};
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
-use tonic::transport::Uri;
+use tonic::transport::{Channel, Uri};
 use tonic::Request;
 
 pub mod pb {
@@ -62,7 +62,12 @@ pub async fn start(
     let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
     let out_stream = if uri.scheme_str() != Some("https") {
-        let mut client = UdpServiceClient::connect(d_addr.clone()).await?;
+        let timeout = Duration::new(3, 0); // 设置超时时间为 5 秒
+        let channel = Channel::builder(uri) // 替换为您的 gRPC 服务器地址
+            .timeout(timeout) // 设置超时
+            .connect()
+            .await?;
+        let mut client = UdpServiceClient::new(channel);
         Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
     } else {
         let _ = default_provider().install_default();
@@ -70,7 +75,6 @@ pub async fn start(
 
         let mut http = HttpConnector::new();
         http.enforce_http(false);
-        http.timeout(Duration::from_secs(3));
 
         // We have to do some wrapping here to map the request type from
         // `https://example.com` -> `https://[::1]:50051` because `rustls`
@@ -90,7 +94,10 @@ pub async fn start(
         let client =
             hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(connector);
         let mut client = UdpServiceClient::with_origin(client, uri);
-        Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
+        let connect_future = async { client.start_stream(rx).await };
+        let stream = timeout(Duration::from_secs(3), connect_future).await??;
+        Arc::new(Mutex::new(stream.into_inner()))
+        // Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
     };
     info!("grpc connected {}", &d_addr);
     let mut last_addr: Option<SocketAddr> = None;
