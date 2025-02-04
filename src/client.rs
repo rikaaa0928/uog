@@ -23,7 +23,7 @@ use tokio::time::timeout;
 use tokio::{io, spawn};
 use tokio_stream::StreamExt;
 use tonic::client::GrpcService;
-use tonic::transport::{Channel, Uri};
+use tonic::transport::{Channel, ClientTlsConfig, Uri};
 use tonic::Request;
 
 pub mod pb {
@@ -62,9 +62,14 @@ pub async fn start(
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
     let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
-    let out_stream = if !lib || uri.scheme_str() != Some("https") {
+    let out_stream = if !lib || (&uri).scheme_str() != Some("https") {
         let timeout = Duration::new(3, 0); // 设置超时时间为 3 秒
-        let channel = Channel::builder(uri) // 替换为您的 gRPC 服务器地址
+        let mut builder = Channel::builder(uri.clone());
+        if (&uri).scheme_str() == Some("https") {
+            let _ = default_provider().install_default();
+            builder = builder.tls_config(ClientTlsConfig::new().with_enabled_roots())?;
+        }
+        let channel = builder // 替换为您的 gRPC 服务器地址
             .timeout(timeout) // 设置超时
             .connect()
             .await?;
