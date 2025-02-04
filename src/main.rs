@@ -1,8 +1,8 @@
-mod server;
 mod client;
+mod server;
 mod util;
-use std::env;
 use clap::{arg, command, Arg, ArgAction};
+use std::env;
 use tokio::sync::oneshot;
 
 #[tokio::main]
@@ -12,11 +12,13 @@ async fn main() -> util::Result<()> {
     }
     env_logger::init();
     let matches = command!()
-        .arg(Arg::new("server")
-                 .short('s')
-                 .long("server")
-                 .action(ArgAction::SetTrue)
-                 .help("server mod"), )
+        .arg(
+            Arg::new("server")
+                .short('s')
+                .long("server")
+                .action(ArgAction::SetTrue)
+                .help("server mod"),
+        )
         .arg(arg!([src] "addr src. client mod [udp-ip:udp-port]; server mod [grpc-ip:grpc-port]"))
         .arg(arg!([dst] "addr dst. client mod [grpc-endpoint]; server mod [udp-port]"))
         .arg(arg!([sec] "secret"))
@@ -27,10 +29,22 @@ async fn main() -> util::Result<()> {
     let auth = matches.get_one::<String>("sec");
     let s_mod = matches.get_one::<bool>("server");
     if s_mod.is_some() && *s_mod.unwrap() {
-        let _ = server::UogServer::bind(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string()).await?;
+        let _ = server::UogServer::bind(
+            src_opt.unwrap().to_string(),
+            dst_opt.unwrap().to_string(),
+            auth.unwrap().to_string(),
+        )
+        .await?;
     } else {
         let (interrupter, mut interrupt_receiver) = oneshot::channel();
-        let _ = client::start(src_opt.unwrap().to_string(), dst_opt.unwrap().to_string(), auth.unwrap().to_string(), &mut interrupt_receiver).await?;
+        let _ = client::start(
+            src_opt.unwrap().to_string(),
+            dst_opt.unwrap().to_string(),
+            auth.unwrap().to_string(),
+            &mut interrupt_receiver,
+            false,
+        )
+        .await?;
         interrupter.send(()).unwrap();
     }
     Ok(())

@@ -52,6 +52,7 @@ pub async fn start(
     d_addr: String,
     auth: String,
     global_int: &mut Receiver<()>,
+    lib: bool,
 ) -> util::Result<()> {
     let sock = UdpSocket::bind(&l_addr).await?;
     info!("udp Listening on {}", &l_addr);
@@ -61,8 +62,8 @@ pub async fn start(
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
     let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
-    let out_stream = if uri.scheme_str() != Some("https") {
-        let timeout = Duration::new(3, 0); // 设置超时时间为 5 秒
+    let out_stream = if !lib || uri.scheme_str() != Some("https") {
+        let timeout = Duration::new(3, 0); // 设置超时时间为 3 秒
         let channel = Channel::builder(uri) // 替换为您的 gRPC 服务器地址
             .timeout(timeout) // 设置超时
             .connect()
@@ -248,6 +249,7 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
         "https://127.0.0.1:443".to_string(),
         "test".to_string(),
         &mut interrupt_receiver,
+        false,
     )
     .await;
     match x {
