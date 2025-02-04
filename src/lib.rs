@@ -2,11 +2,11 @@ mod client;
 // mod server;
 mod util;
 
+use jni::objects::{JClass, JObject};
+use jni::JNIEnv;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
-use jni::JNIEnv;
-use jni::objects::{JClass, JObject};
 
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::{Receiver, Sender};
@@ -34,10 +34,24 @@ impl UogRust {
         let rt = Runtime::new().unwrap();
         if let Ok(mut receiver) = self.interrupt_receiver.lock() {
             if let Some(mut receiver) = receiver.take() {
-                let r = rt.block_on(client::start(l_addr.to_owned(), d_addr.to_owned(), auth.to_owned(), &mut receiver));
+                let r = rt.block_on(client::start(
+                    l_addr.to_owned(),
+                    d_addr.to_owned(),
+                    auth.to_owned(),
+                    &mut receiver,
+                    true,
+                ));
                 if r.is_err() {
                     let x = &r.err().unwrap();
-                    return l_addr.to_owned() + " : " + d_addr + " : " + auth + " : " + x.clone().to_string().as_str() + " : " + x.backtrace().to_string().as_str();
+                    return l_addr.to_owned()
+                        + " : "
+                        + d_addr
+                        + " : "
+                        + auth
+                        + " : "
+                        + x.clone().to_string().as_str()
+                        + " : "
+                        + x.backtrace().to_string().as_str();
                 } else {
                     return "".to_string();
                 }
@@ -77,21 +91,23 @@ impl UogRust {
 //     let _ = rt.block_on(server::UogServer::bind(l_addr, d_addr, auth));
 // }
 
-
 #[allow(non_snake_case)]
 #[cfg(target_os = "android")]
 #[no_mangle]
-pub extern "system" fn Java_moe_rikaaa0928_uot_Init_init(env: JNIEnv, _class: JClass, context: JObject) {
+pub extern "system" fn Java_moe_rikaaa0928_uot_Init_init(
+    env: JNIEnv,
+    _class: JClass,
+    context: JObject,
+) {
     // Then, initialize the certificate verifier for future use.
     let _ = rustls_platform_verifier::android::init_hosted(&env, context);
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::thread::{sleep, spawn};
     use std::time::Duration;
-    use super::*;
 
     #[test]
     fn client() {
@@ -103,6 +119,5 @@ mod tests {
         });
         let x = c.client("127.0.0.1:50051", "https://127.0.0.1:443", "test");
         println!("{:#?}", x);
-
     }
 }
