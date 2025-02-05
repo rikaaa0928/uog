@@ -70,7 +70,7 @@ pub async fn start(
             builder = builder.tls_config(ClientTlsConfig::new().with_enabled_roots())?;
         }
         let channel = builder // 替换为您的 gRPC 服务器地址
-            .timeout(timeout) // 设置超时
+            .connect_timeout(timeout) // 设置超时
             .connect()
             .await?;
         let mut client = UdpServiceClient::new(channel);
