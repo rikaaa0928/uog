@@ -63,18 +63,25 @@ pub async fn start(
     let mut rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
     let out_stream = if !lib || (&uri).scheme_str() != Some("https") {
-        let timeout = Duration::new(3, 0); // 设置超时时间为 3 秒
+        // let timeout = Duration::new(3, 0); // 设置超时时间为 3 秒
         let mut builder = Channel::builder(uri.clone());
         if (&uri).scheme_str() == Some("https") {
             let _ = default_provider().install_default();
             builder = builder.tls_config(ClientTlsConfig::new().with_enabled_roots())?;
         }
-        let channel = builder // 替换为您的 gRPC 服务器地址
-            .connect_timeout(timeout) // 设置超时
+        // let channel = builder // 替换为您的 gRPC 服务器地址
+        //     .connect_timeout(timeout) // 设置超时
+        //     .connect()
+        //     .await?;
+        let channel_future = async { builder
             .connect()
-            .await?;
+            .await };
+        let channel = timeout(Duration::from_secs(3), channel_future).await??;
+        info!("grpc channel connected {}", &d_addr);
         let mut client = UdpServiceClient::new(channel);
-        Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
+        let connect_future = async { client.start_stream(rx).await };
+        let stream = timeout(Duration::from_secs(3), connect_future).await??;
+        Arc::new(Mutex::new(stream.into_inner()))
     } else {
         let _ = default_provider().install_default();
         let tls = rustls_platform_verifier::tls_config();
