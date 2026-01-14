@@ -4,11 +4,12 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 mod client;
+mod pb;
 mod server;
 mod util;
 use clap::{arg, command, Arg, ArgAction};
 use std::env;
-use tokio::sync::oneshot;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> util::Result<()> {
@@ -41,16 +42,15 @@ async fn main() -> util::Result<()> {
         )
         .await?;
     } else {
-        let (interrupter, mut interrupt_receiver) = oneshot::channel();
+        let cancel_token = CancellationToken::new();
         let _ = client::start(
             src_opt.unwrap().to_string(),
             dst_opt.unwrap().to_string(),
             auth.unwrap().to_string(),
-            &mut interrupt_receiver,
+            cancel_token,
             false,
         )
         .await?;
-        interrupter.send(()).unwrap();
     }
     Ok(())
 }

@@ -1,24 +1,20 @@
-use std::env;
+use crate::pb;
+use crate::util;
+use log::{debug, error};
+use pb::udp_service_server::UdpService;
+use pb::{UdpReq, UdpRes};
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
-use log::{debug, error};
 use tokio::net::UdpSocket;
 use tokio::spawn;
 use tokio::sync::mpsc;
-use tokio::time::{sleep, timeout};
-use tonic::{transport::Server, Request, Response, Status, Streaming};
-use tonic::codegen::tokio_stream::{Stream, StreamExt};
+use tokio::time::timeout;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
-use pb::udp_service_server::UdpService;
-use pb::{UdpReq, UdpRes};
-use crate::util;
-
-pub mod pb {
-    tonic::include_proto!("dad.xiaomi.uog");
-}
+use tonic::codegen::tokio_stream::{Stream, StreamExt};
+use tonic::{transport::Server, Request, Response, Status, Streaming};
 type ResponseStream = Pin<Box<dyn Stream<Item=Result<UdpRes, Status>> + Send>>;
 #[derive(Debug, Default)]
 pub struct UogServer {
@@ -132,8 +128,8 @@ async fn server_test() -> Result<(), Box<dyn std::error::Error>> {
     //     .serve(addr)
     //     .await?;
 
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "debug")
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "debug")
     }
     env_logger::init();
     // spawn(async {

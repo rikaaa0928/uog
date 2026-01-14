@@ -1,4 +1,5 @@
 mod client;
+mod pb;
 // mod server;
 mod util;
 
@@ -6,69 +7,55 @@ mod util;
 use jni::objects::{JClass, JObject};
 #[cfg(target_os = "android")]
 use jni::JNIEnv;
-use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
-
-use tokio::sync::oneshot;
-use tokio::sync::oneshot::{Receiver, Sender};
+use tokio_util::sync::CancellationToken;
 
 uniffi::setup_scaffolding!();
 
 #[derive(uniffi::Object)]
 pub struct UogRust {
-    interrupt_sender: Arc<Mutex<Option<Sender<()>>>>,
-    interrupt_receiver: Arc<Mutex<Option<Receiver<()>>>>,
+    cancel_token: CancellationToken,
 }
 
 #[uniffi::export]
 impl UogRust {
     #[uniffi::constructor(name = "new")]
     pub fn new() -> Self {
-        let (interrupt_sender, interrupt_receiver) = oneshot::channel();
         UogRust {
-            interrupt_sender: Arc::new(Mutex::new(Some(interrupt_sender))),
-            interrupt_receiver: Arc::new(Mutex::new(Some(interrupt_receiver))),
+            cancel_token: CancellationToken::new(),
         }
     }
 
     pub fn client(&self, l_addr: &str, d_addr: &str, auth: &str) -> String {
         let rt = Runtime::new().unwrap();
-        if let Ok(mut receiver) = self.interrupt_receiver.lock() {
-            if let Some(mut receiver) = receiver.take() {
-                let r = rt.block_on(client::start(
-                    l_addr.to_owned(),
-                    d_addr.to_owned(),
-                    auth.to_owned(),
-                    &mut receiver,
-                    true,
-                ));
-                if r.is_err() {
-                    let x = &r.err().unwrap();
-                    return l_addr.to_owned()
-                        + " : "
-                        + d_addr
-                        + " : "
-                        + auth
-                        + " : "
-                        + x.clone().to_string().as_str()
-                        + " : "
-                        + x.backtrace().to_string().as_str();
-                } else {
-                    return "".to_string();
-                }
-            } else {
-                return "receiver none".to_string();
-            }
+        // 创建子 token，允许多次调用 client()
+        let child_token = self.cancel_token.child_token();
+        let r = rt.block_on(client::start(
+            l_addr.to_owned(),
+            d_addr.to_owned(),
+            auth.to_owned(),
+            child_token,
+            true,
+        ));
+        if r.is_err() {
+            let x = &r.err().unwrap();
+            return format!(
+                "{} : {} : {} : {} : {}",
+                l_addr, d_addr, auth, x, x.backtrace()
+            );
         } else {
-            return "receiver locked".to_string();
+            return "".to_string();
         }
     }
 
     pub fn stop(&self) {
-        if let Ok(mut sender) = self.interrupt_sender.lock() {
-            if let Some(sender) = sender.take() {
-                let _ = sender.send(());
-            }
+        self.cancel_token.cancel();
+    }
+
+    /// Reset the cancellation token to allow reuse
+    pub fn reset(&self) -> Self {
+        UogRust {
+            cancel_token: CancellationToken::new(),
         }
     }
 }
@@ -109,6 +96,7 @@ pub extern "system" fn Java_moe_rikaaa0928_uot_Init_init(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use std::thread::{sleep, spawn};
     use std::time::Duration;
 
