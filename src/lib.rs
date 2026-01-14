@@ -2,9 +2,10 @@ mod client;
 // mod server;
 mod util;
 
+#[cfg(target_os = "android")]
 use jni::objects::{JClass, JObject};
+#[cfg(target_os = "android")]
 use jni::JNIEnv;
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
@@ -91,16 +92,18 @@ impl UogRust {
 //     let _ = rt.block_on(server::UogServer::bind(l_addr, d_addr, auth));
 // }
 
+// Android 平台现在使用 webpki-roots 提供的 Mozilla 根证书
+// 不再需要通过 JNI 初始化系统证书验证器
 #[allow(non_snake_case)]
 #[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "system" fn Java_moe_rikaaa0928_uot_Init_init(
-    env: JNIEnv,
+    _env: JNIEnv,
     _class: JClass,
-    context: JObject,
+    _context: JObject,
 ) {
-    // Then, initialize the certificate verifier for future use.
-    let _ = rustls_platform_verifier::android::init_hosted(&env, context);
+    // 保留此函数以保持 JNI 接口兼容性
+    // 但不再需要初始化系统证书验证器
 }
 
 #[cfg(test)]

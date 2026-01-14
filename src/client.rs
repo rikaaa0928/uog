@@ -84,7 +84,13 @@ pub async fn start(
         Arc::new(Mutex::new(stream.into_inner()))
     } else {
         let _ = default_provider().install_default();
-        let tls = rustls_platform_verifier::tls_config();
+        
+        // lib 模式使用 webpki-roots 提供的 Mozilla 根证书
+        let mut root_store = rustls::RootCertStore::empty();
+        root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        let tls = rustls::ClientConfig::builder()
+            .with_root_certificates(root_store)
+            .with_no_client_auth();
 
         let mut http = HttpConnector::new();
         http.enforce_http(false);
