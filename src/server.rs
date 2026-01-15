@@ -1,5 +1,6 @@
 use crate::pb;
 use crate::util;
+use crate::constants;
 use log::{debug, error};
 use pb::udp_service_server::UdpService;
 use pb::{UdpReq, UdpRes};
@@ -7,7 +8,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+
 use tokio::net::UdpSocket;
 use tokio::spawn;
 use tokio::sync::mpsc;
@@ -71,7 +72,7 @@ impl UogServer {
         spawn(async move {
             let mut buf = [0; 65536];
             while !should_stop.load(Ordering::Relaxed) {
-                match timeout(Duration::from_secs(30), socket.recv_from(&mut buf)).await {
+                match timeout(constants::SERVER_UDP_READ_TIMEOUT, socket.recv_from(&mut buf)).await {
                     Ok(Ok((size, _))) => {
                         debug!("grpc sending data: {:?}", &buf[..size]);
                         if tx.send(Ok(UdpRes { payload: buf[..size].to_vec() })).await.is_err() {

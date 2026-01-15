@@ -1,5 +1,6 @@
 use crate::pb;
 use crate::util;
+use crate::constants;
 use anyhow::Error;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
@@ -13,7 +14,7 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
+
 use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, Mutex};
 use tokio::time::timeout;
@@ -76,11 +77,11 @@ pub async fn start(
         let channel_future = async { builder
             .connect()
             .await };
-        let channel = timeout(Duration::from_secs(3), channel_future).await??;
+        let channel = timeout(constants::CLIENT_CONNECT_TIMEOUT, channel_future).await??;
         info!("grpc channel connected {}", &d_addr);
         let mut client = UdpServiceClient::new(channel);
         let connect_future = async { client.start_stream(rx).await };
-        let stream = timeout(Duration::from_secs(3), connect_future).await??;
+        let stream = timeout(constants::CLIENT_CONNECT_TIMEOUT, connect_future).await??;
         Arc::new(Mutex::new(stream.into_inner()))
     } else {
         // 使用缓存的 TLS 配置
@@ -106,7 +107,7 @@ pub async fn start(
             hyper_util::client::legacy::Client::builder(TokioExecutor::new()).build(connector);
         let mut client = UdpServiceClient::with_origin(client, uri);
         let connect_future = async { client.start_stream(rx).await };
-        let stream = timeout(Duration::from_secs(3), connect_future).await??;
+        let stream = timeout(constants::CLIENT_CONNECT_TIMEOUT, connect_future).await??;
         Arc::new(Mutex::new(stream.into_inner()))
         // Arc::new(Mutex::new(client.start_stream(rx).await?.into_inner()))
     };

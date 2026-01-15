@@ -2,6 +2,7 @@ mod client;
 mod pb;
 // mod server;
 mod util;
+pub mod constants;
 
 #[cfg(target_os = "android")]
 use jni::objects::{JClass, JObject};

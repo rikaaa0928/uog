@@ -7,6 +7,7 @@ mod client;
 mod pb;
 mod server;
 mod util;
+mod constants;
 use clap::{arg, command, Arg, ArgAction};
 use std::env;
 use tokio_util::sync::CancellationToken;
