@@ -37,6 +37,7 @@ impl UogRust {
             auth.to_owned(),
             child_token,
             true,
+            128,
         ));
         if r.is_err() {
             let x = &r.err().unwrap();

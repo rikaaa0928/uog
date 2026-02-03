@@ -53,12 +53,13 @@ pub async fn start(
     auth: String,
     cancel_token: CancellationToken,
     lib: bool,
+    buffer_size: usize,
 ) -> util::Result<()> {
     let sock = UdpSocket::bind(&l_addr).await?;
     info!("udp Listening on {}", &l_addr);
     let sock = Arc::new(sock);
 
-    let (tx, rx) = mpsc::channel::<UdpReq>(1024);
+    let (tx, rx) = mpsc::channel::<UdpReq>(buffer_size);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
     let rx = Request::new(rx);
     let uri = Uri::from_str(d_addr.as_str())?;
@@ -266,6 +267,7 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
         "test".to_string(),
         cancel_token.clone(),
         false,
+        128,
     )
     .await;
     match x {

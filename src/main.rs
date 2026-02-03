@@ -30,16 +30,28 @@ async fn main() -> util::Result<()> {
         .arg(arg!([dst] "addr dst. client mod [grpc-endpoint]; server mod [udp-port]"))
         .arg(arg!([sec] "secret"))
         // .arg(arg!([bind] "port bind. client mod [remote-udp-port]; server mod none"))
+        .arg(
+            Arg::new("buffer_size")
+                .short('b')
+                .long("buffer-size")
+                .help("Buffer size for the channel (default: 128)")
+                .default_value("128"),
+        )
         .get_matches();
     let src_opt = matches.get_one::<String>("src");
     let dst_opt = matches.get_one::<String>("dst");
     let auth = matches.get_one::<String>("sec");
     let s_mod = matches.get_one::<bool>("server");
+    let buffer_size: usize = matches.get_one::<String>("buffer_size")
+        .unwrap()
+        .parse()
+        .expect("Invalid buffer size");
     if s_mod.is_some() && *s_mod.unwrap() {
         let _ = server::UogServer::bind(
             src_opt.unwrap().to_string(),
             dst_opt.unwrap().to_string(),
             auth.unwrap().to_string(),
+            buffer_size,
         )
         .await?;
     } else {
@@ -50,6 +62,7 @@ async fn main() -> util::Result<()> {
             auth.unwrap().to_string(),
             cancel_token,
             false,
+            buffer_size,
         )
         .await?;
     }

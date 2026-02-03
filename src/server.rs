@@ -21,6 +21,7 @@ type ResponseStream = Pin<Box<dyn Stream<Item=Result<UdpRes, Status>> + Send>>;
 pub struct UogServer {
     key: String,
     d_addr: String,
+    channel_size: usize,
 }
 
 #[tonic::async_trait]
@@ -30,7 +31,7 @@ impl UdpService for UogServer {
     async fn start_stream(&self, request: Request<Streaming<UdpReq>>) -> Result<Response<Self::startStreamStream>, Status> {
         debug!("Stream started");
         let in_stream = request.into_inner();
-        let (tx, rx) = mpsc::channel(1024);
+        let (tx, rx) = mpsc::channel(self.channel_size);
         let key = Arc::new(self.key.clone());
         let d_addr = self.d_addr.clone();
 
@@ -55,12 +56,12 @@ impl UdpService for UogServer {
 }
 
 impl UogServer {
-    pub fn new(d_addr: String, key: String) -> Self {
-        UogServer { key, d_addr }
+    pub fn new(d_addr: String, key: String, channel_size: usize) -> Self {
+        UogServer { key, d_addr, channel_size }
     }
 
-    pub async fn bind(addr: String, d_addr: String, key: String) -> util::Result<()> {
-        let uog = UogServer::new(d_addr, key);
+    pub async fn bind(addr: String, d_addr: String, key: String, channel_size: usize) -> util::Result<()> {
+        let uog = UogServer::new(d_addr, key, channel_size);
         let addr: SocketAddr = addr.parse()?;
         Server::builder()
             .add_service(pb::udp_service_server::UdpServiceServer::new(uog))
@@ -144,7 +145,7 @@ async fn server_test() -> Result<(), Box<dyn std::error::Error>> {
     //     }
     // });
     // sleep(std::time::Duration::from_secs(1)).await;
-    UogServer::bind("127.0.0.1:50051".to_string(), "127.0.0.1:50051".to_string(), "test".to_string()).await?;
+    UogServer::bind("127.0.0.1:50051".to_string(), "127.0.0.1:50051".to_string(), "test".to_string(), 128).await?;
 
     Ok(())
 }
