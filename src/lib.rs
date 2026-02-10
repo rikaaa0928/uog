@@ -30,24 +30,35 @@ impl UogRust {
     pub fn client(&self, l_addr: &str, d_addr: &str, auth: &str) -> String {
         let rt = Runtime::new().unwrap();
         // 创建子 token，允许多次调用 client()
-        let child_token = self.cancel_token.child_token();
-        let r = rt.block_on(client::start(
-            l_addr.to_owned(),
-            d_addr.to_owned(),
-            auth.to_owned(),
-            child_token,
-            true,
-            128,
-        ));
-        if r.is_err() {
-            let x = &r.err().unwrap();
-            return format!(
-                "{} : {} : {} : {} : {}",
-                l_addr, d_addr, auth, x, x.backtrace()
-            );
-        } else {
-            return "".to_string();
+        loop {
+            if self.cancel_token.is_cancelled() {
+                break;
+            }
+            let child_token = self.cancel_token.child_token();
+            let r = rt.block_on(client::start(
+                l_addr.to_owned(),
+                d_addr.to_owned(),
+                auth.to_owned(),
+                child_token.clone(),
+                true,
+                128,
+            ));
+            
+            if self.cancel_token.is_cancelled() {
+                break;
+            }
+
+            if r.is_err() {
+                 rt.block_on(async {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                });
+            } else {
+                 rt.block_on(async {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                });
+            }
         }
+        return "".to_string();
     }
 
     pub fn stop(&self) {

@@ -55,16 +55,33 @@ async fn main() -> util::Result<()> {
         )
         .await?;
     } else {
-        let cancel_token = CancellationToken::new();
-        let _ = client::start(
-            src_opt.unwrap().to_string(),
-            dst_opt.unwrap().to_string(),
-            auth.unwrap().to_string(),
-            cancel_token,
-            false,
-            buffer_size,
-        )
-        .await?;
+        let root_token = CancellationToken::new();
+        loop {
+            if root_token.is_cancelled() {
+                break;
+            }
+            let child_token = root_token.child_token();
+            let result = client::start(
+                src_opt.unwrap().to_string(),
+                dst_opt.unwrap().to_string(),
+                auth.unwrap().to_string(),
+                child_token,
+                false,
+                buffer_size,
+            )
+            .await;
+
+            if root_token.is_cancelled() {
+                break;
+            }
+
+            if let Err(e) = result {
+                log::error!("Client exited with error: {}, restarting in 1s...", e);
+            } else {
+                log::info!("Client exited normally, restarting in 1s...");
+            }
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        }
     }
     Ok(())
 }
