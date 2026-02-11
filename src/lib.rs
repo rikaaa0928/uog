@@ -30,18 +30,36 @@ impl UogRust {
     }
 
     pub fn client(&self, l_addr: &str, d_addr: &str, auth: &str) -> String {
+        let servers: Vec<&str> = d_addr.split(',').collect();
+        let secrets: Vec<&str> = auth.split(',').collect();
+
+        if secrets.len() != 1 && secrets.len() != servers.len() {
+            // panic!("The number of secrets must be 1 or equal to the number of servers.");
+             return "The number of secrets must be 1 or equal to the number of servers.".to_string();
+        }
+
         let rt = Runtime::new().unwrap();
         // 创建子 token，允许多次调用 client()
         let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
+        let mut server_index = 0;
         loop {
             if self.cancel_token.is_cancelled() {
                 break;
             }
+
+            let current_server = servers[server_index % servers.len()];
+            let current_secret = if secrets.len() == 1 {
+                secrets[0]
+            } else {
+                secrets[server_index % secrets.len()]
+            };
+            server_index = server_index.wrapping_add(1);
+
             let child_token = self.cancel_token.child_token();
-            let r = rt.block_on(client::start(
+            let _r = rt.block_on(client::start(
                 l_addr.to_owned(),
-                d_addr.to_owned(),
-                auth.to_owned(),
+                current_server.to_string(),
+                current_secret.to_string(),
                 child_token.clone(),
                 true,
                 128,

@@ -58,16 +58,34 @@ async fn main() -> util::Result<()> {
         .await?;
     } else {
         let root_token = CancellationToken::new();
+        let servers: Vec<&str> = dst_opt.unwrap().split(',').collect();
+        let secrets: Vec<&str> = auth.unwrap().split(',').collect();
+
+        if secrets.len() != 1 && secrets.len() != servers.len() {
+            panic!("The number of secrets must be 1 or equal to the number of servers.");
+        }
+
         let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
+        let mut server_index = 0;
+
         loop {
             if root_token.is_cancelled() {
                 break;
             }
+
+            let current_server = servers[server_index % servers.len()];
+            let current_secret = if secrets.len() == 1 {
+                secrets[0]
+            } else {
+                secrets[server_index % secrets.len()]
+            };
+            server_index = server_index.wrapping_add(1);
+
             let child_token = root_token.child_token();
             let result = client::start(
                 src_opt.unwrap().to_string(),
-                dst_opt.unwrap().to_string(),
-                auth.unwrap().to_string(),
+                current_server.to_string(),
+                current_secret.to_string(),
                 child_token,
                 false,
                 buffer_size,
