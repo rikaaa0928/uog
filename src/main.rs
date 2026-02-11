@@ -11,6 +11,8 @@ mod constants;
 use clap::{arg, command, Arg, ArgAction};
 use std::env;
 use tokio_util::sync::CancellationToken;
+use std::collections::VecDeque;
+use std::time::{Instant, Duration};
 
 #[tokio::main]
 async fn main() -> util::Result<()> {
@@ -56,6 +58,7 @@ async fn main() -> util::Result<()> {
         .await?;
     } else {
         let root_token = CancellationToken::new();
+        let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
         loop {
             if root_token.is_cancelled() {
                 break;
@@ -76,11 +79,27 @@ async fn main() -> util::Result<()> {
             }
 
             if let Err(e) = result {
-                log::error!("Client exited with error: {}, restarting in 1s...", e);
+                log::error!("Client exited with error: {}", e);
             } else {
-                log::info!("Client exited normally, restarting in 1s...");
+                log::info!("Client exited normally");
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+            let now = Instant::now();
+            restart_timestamps.push_back(now);
+            while let Some(&t) = restart_timestamps.front() {
+                if now.duration_since(t) > Duration::from_secs(3) {
+                    restart_timestamps.pop_front();
+                } else {
+                    break;
+                }
+            }
+
+            if restart_timestamps.len() >= 3 {
+                log::info!("Restarting in 1s...");
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            } else {
+                log::info!("Restarting immediately...");
+            }
         }
     }
     Ok(())

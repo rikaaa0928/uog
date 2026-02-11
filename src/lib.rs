@@ -10,6 +10,8 @@ use jni::objects::{JClass, JObject};
 use jni::JNIEnv;
 use tokio::runtime::Runtime;
 use tokio_util::sync::CancellationToken;
+use std::collections::VecDeque;
+use std::time::{Instant, Duration};
 
 uniffi::setup_scaffolding!();
 
@@ -30,6 +32,7 @@ impl UogRust {
     pub fn client(&self, l_addr: &str, d_addr: &str, auth: &str) -> String {
         let rt = Runtime::new().unwrap();
         // 创建子 token，允许多次调用 client()
+        let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
         loop {
             if self.cancel_token.is_cancelled() {
                 break;
@@ -48,11 +51,27 @@ impl UogRust {
                 break;
             }
 
-            if r.is_err() {
-                 rt.block_on(async {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                });
-            } else {
+            // if r.is_err() {
+            //      rt.block_on(async {
+            //         // tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            //     });
+            // } else {
+            //      rt.block_on(async {
+            //         // tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            //     });
+            // }
+
+            let now = Instant::now();
+            restart_timestamps.push_back(now);
+            while let Some(&t) = restart_timestamps.front() {
+                if now.duration_since(t) > Duration::from_secs(3) {
+                    restart_timestamps.pop_front();
+                } else {
+                    break;
+                }
+            }
+
+            if restart_timestamps.len() >= 3 {
                  rt.block_on(async {
                     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 });
