@@ -35,10 +35,21 @@ impl UogRust {
 
         if secrets.len() != 1 && secrets.len() != servers.len() {
             // panic!("The number of secrets must be 1 or equal to the number of servers.");
-             return "The number of secrets must be 1 or equal to the number of servers.".to_string();
+            return "The number of secrets must be 1 or equal to the number of servers.".to_string();
         }
 
         let rt = Runtime::new().unwrap();
+
+        use std::sync::Arc;
+        use tokio::net::UdpSocket;
+
+        let sock_future = async {
+            UdpSocket::bind(&l_addr).await
+        };
+        let sock = rt.block_on(sock_future).expect("Bind failed");
+        log::info!("udp Listening on {}", &l_addr);
+        let shared_sock = Arc::new(sock);
+
         // 创建子 token，允许多次调用 client()
         let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
         let mut server_index = 0;
@@ -58,7 +69,7 @@ impl UogRust {
             let child_token = self.cancel_token.child_token();
             log::info!("Connecting to server: {}", current_server);
             let _r = rt.block_on(client::start(
-                l_addr.to_owned(),
+                shared_sock.clone(),
                 current_server.to_string(),
                 current_secret.to_string(),
                 child_token.clone(),

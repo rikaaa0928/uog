@@ -48,29 +48,14 @@ async fn interruptible_recv(
 }
 
 pub async fn start(
-    l_addr: String,
+    sock: Arc<UdpSocket>,
     d_addr: String,
     auth: String,
     cancel_token: CancellationToken,
     lib: bool,
     channel_size: usize,
 ) -> util::Result<()> {
-    use socket2::{Domain, Protocol, Socket, Type};
-    
-    let addr: SocketAddr = l_addr.parse()?;
-    let domain = if addr.is_ipv4() { Domain::IPV4 } else { Domain::IPV6 };
-    let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
-    
-    #[cfg(not(windows))]
-    socket.set_reuse_port(true)?;
-    
-    socket.set_reuse_address(true)?;
-    socket.set_nonblocking(true)?;
-    socket.bind(&addr.into())?;
-    
-    let sock = UdpSocket::from_std(socket.into())?;
-    info!("udp Listening on {}", &l_addr);
-    let sock = Arc::new(sock);
+    let sock = sock.clone();
 
     let (tx, rx) = mpsc::channel::<UdpReq>(channel_size);
     let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
@@ -274,8 +259,9 @@ async fn client_test() -> Result<(), Box<dyn std::error::Error>> {
     // let read_buf = String::from_utf8(read_buf.to_vec()).unwrap();
     // println!("client udp recv {:?}", read_buf);
     let cancel_token = CancellationToken::new();
+    let sock = Arc::new(UdpSocket::bind("127.0.0.1:50051").await?);
     let x = start(
-        "127.0.0.1:50051".to_string(),
+        sock,
         "https://127.0.0.1:443".to_string(),
         "test".to_string(),
         cancel_token.clone(),

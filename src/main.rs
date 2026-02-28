@@ -66,8 +66,16 @@ async fn main() -> util::Result<()> {
         }
 
         let mut restart_timestamps: VecDeque<Instant> = VecDeque::new();
-        let mut server_index = 0;
+        use std::sync::Arc;
+        use tokio::net::UdpSocket;
 
+        let l_addr = src_opt.unwrap().to_string();
+        let sock = UdpSocket::bind(&l_addr).await.expect("Bind failed");
+        
+        log::info!("udp Listening on {}", &l_addr);
+        let shared_sock = Arc::new(sock);
+
+        let mut server_index = 0;
         loop {
             if root_token.is_cancelled() {
                 break;
@@ -84,7 +92,7 @@ async fn main() -> util::Result<()> {
             let child_token = root_token.child_token();
             log::info!("Connecting to server: {}", current_server);
             let result = client::start(
-                src_opt.unwrap().to_string(),
+                shared_sock.clone(),
                 current_server.to_string(),
                 current_secret.to_string(),
                 child_token,

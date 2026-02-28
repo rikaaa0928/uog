@@ -1968,7 +1968,6 @@ dependencies = [
  "once_cell",
  "prost",
  "rustls",
- "socket2 0.6.2",
  "tokio",
  "tokio-stream",
  "tokio-util",
