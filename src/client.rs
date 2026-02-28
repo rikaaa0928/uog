@@ -55,7 +55,20 @@ pub async fn start(
     lib: bool,
     channel_size: usize,
 ) -> util::Result<()> {
-    let sock = UdpSocket::bind(&l_addr).await?;
+    use socket2::{Domain, Protocol, Socket, Type};
+    
+    let addr: SocketAddr = l_addr.parse()?;
+    let domain = if addr.is_ipv4() { Domain::IPV4 } else { Domain::IPV6 };
+    let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+    
+    #[cfg(not(windows))]
+    socket.set_reuse_port(true)?;
+    
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&addr.into())?;
+    
+    let sock = UdpSocket::from_std(socket.into())?;
     info!("udp Listening on {}", &l_addr);
     let sock = Arc::new(sock);
 
