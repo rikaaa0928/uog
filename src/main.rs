@@ -82,6 +82,7 @@ async fn main() -> util::Result<()> {
             server_index = server_index.wrapping_add(1);
 
             let child_token = root_token.child_token();
+            log::info!("Connecting to server: {}", current_server);
             let result = client::start(
                 src_opt.unwrap().to_string(),
                 current_server.to_string(),

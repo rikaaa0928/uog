@@ -56,6 +56,7 @@ impl UogRust {
             server_index = server_index.wrapping_add(1);
 
             let child_token = self.cancel_token.child_token();
+            log::info!("Connecting to server: {}", current_server);
             let _r = rt.block_on(client::start(
                 l_addr.to_owned(),
                 current_server.to_string(),
