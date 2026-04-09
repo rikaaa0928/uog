@@ -21,25 +21,32 @@ jobs:
         include:
           - build: linux-musl
             os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
+            rust_target: x86_64-unknown-linux-musl
+            zig_target: x86_64-unknown-linux-musl
           - build: linux-arm64-musl
             os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
+            rust_target: aarch64-unknown-linux-musl
+            zig_target: aarch64-unknown-linux-musl
           - build: linux-gnu
             os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
+            zig_target: x86_64-unknown-linux-gnu.2.17
           - build: macos-arm64
             os: macos-latest
-            target: aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
+            zig_target: aarch64-apple-darwin
           - build: macos
             os: macos-latest
-            target: x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
+            zig_target: x86_64-apple-darwin
           - build: windows
             os: windows-latest
-            target: x86_64-pc-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
+            zig_target: x86_64-pc-windows-msvc
           - build: freebsd
             os: ubuntu-latest
-            target: x86_64-unknown-freebsd
+            rust_target: x86_64-unknown-freebsd
+            zig_target: x86_64-unknown-freebsd
 
     steps:
       - name: Checkout
@@ -58,14 +65,33 @@ jobs:
         # Arguments to pass in
         with:
           # Make Rust compile to our target (defined in the matrix)
-          targets: ${{ matrix.target }}
-      - uses: ilammy/setup-nasm@v1
-      - name: Build
-        uses: actions-rs/cargo@v1
+          targets: ${{ matrix.rust_target }}
+
+      - name: Setup Zig
+        if: runner.os == 'Linux'
+        uses: goto-bus-stop/setup-zig@v2
         with:
-          use-cross: true
-          command: build
-          args: --verbose --release --target ${{ matrix.target }}  --bin uog
+          version: 0.11.0
+
+      - name: Install cargo-zigbuild
+        if: runner.os == 'Linux'
+        run: cargo install cargo-zigbuild --locked
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip clang libclang-dev protobuf-compiler
+
+      - uses: ilammy/setup-nasm@v1
+
+      - name: Build with zigbuild
+        if: runner.os == 'Linux'
+        run: cargo zigbuild --verbose --release --target ${{ matrix.zig_target }} --bin uog
+
+      - name: Build with cargo (Native)
+        if: runner.os != 'Linux'
+        run: cargo build --verbose --release --target ${{ matrix.rust_target }} --bin uog
 
       - name: Build archive
         shell: bash
@@ -73,12 +99,12 @@ jobs:
           # Replace with the name of your binary
           binary_name="uog"
 
-          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
+          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.rust_target }}"
           mkdir "$dirname"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv "target/${{ matrix.target }}/release/$binary_name.exe" "$dirname"
+            mv "target/${{ matrix.rust_target }}/release/$binary_name.exe" "$dirname"
           else
-            mv "target/${{ matrix.target }}/release/$binary_name" "$dirname"
+            mv "target/${{ matrix.rust_target }}/release/$binary_name" "$dirname"
           fi
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
